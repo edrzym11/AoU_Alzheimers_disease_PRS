@@ -1,0 +1,661 @@
+library(tidyverse)
+library(bigrquery)
+
+# This query represents dataset "Population_demographics_redo" for domain "person" and was generated for All of Us Controlled Tier Dataset v8
+dataset_56355420_person_sql <- paste("
+    SELECT
+        person.person_id,
+        person.gender_concept_id,
+        p_gender_concept.concept_name as gender,
+        person.birth_datetime as date_of_birth,
+        person.race_concept_id,
+        p_race_concept.concept_name as race,
+        person.ethnicity_concept_id,
+        p_ethnicity_concept.concept_name as ethnicity,
+        person.sex_at_birth_concept_id,
+        p_sex_at_birth_concept.concept_name as sex_at_birth,
+        person.self_reported_category_concept_id,
+        p_self_reported_category_concept.concept_name as self_reported_category 
+    FROM
+        `person` person 
+    LEFT JOIN
+        `concept` p_gender_concept 
+            ON person.gender_concept_id = p_gender_concept.concept_id 
+    LEFT JOIN
+        `concept` p_race_concept 
+            ON person.race_concept_id = p_race_concept.concept_id 
+    LEFT JOIN
+        `concept` p_ethnicity_concept 
+            ON person.ethnicity_concept_id = p_ethnicity_concept.concept_id 
+    LEFT JOIN
+        `concept` p_sex_at_birth_concept 
+            ON person.sex_at_birth_concept_id = p_sex_at_birth_concept.concept_id 
+    LEFT JOIN
+        `concept` p_self_reported_category_concept 
+            ON person.self_reported_category_concept_id = p_self_reported_category_concept.concept_id", sep="")
+
+# Formulate a Cloud Storage destination path for the data exported from BigQuery.
+# NOTE: By default data exported multiple times on the same day will overwrite older copies.
+#       But data exported on a different days will write to a new location so that historical
+#       copies can be kept as the dataset definition is changed.
+person_56355420_path <- file.path(
+  Sys.getenv("WORKSPACE_BUCKET"),
+  "bq_exports",
+  Sys.getenv("OWNER_EMAIL"),
+  strftime(lubridate::now(), "%Y%m%d"),  # Comment out this line if you want the export to always overwrite.
+  "person_56355420",
+  "person_56355420_*.csv")
+message(str_glue('The data will be written to {person_56355420_path}. Use this path when reading ',
+                 'the data into your notebooks in the future.'))
+
+# Perform the query and export the dataset to Cloud Storage as CSV files.
+# NOTE: You only need to run `bq_table_save` once. After that, you can
+#       just read data from the CSVs in Cloud Storage.
+bq_table_save(
+  bq_dataset_query(Sys.getenv("WORKSPACE_CDR"), dataset_56355420_person_sql, billing = Sys.getenv("GOOGLE_PROJECT")),
+  person_56355420_path,
+  destination_format = "CSV")
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {person_56355420_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(gender = col_character(), race = col_character(), ethnicity = col_character(), sex_at_birth = col_character(), self_reported_category = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_56355420_person_df <- read_bq_export_from_workspace_bucket(person_56355420_path)
+
+dim(dataset_56355420_person_df)
+
+head(dataset_56355420_person_df, 5)
+
+All_with_demographics <- dataset_56355420_person_df
+
+library(tidyverse)
+library(bigrquery)
+
+# This query represents dataset "Demographics_with_WGS" for domain "person" and was generated for All of Us Controlled Tier Dataset v8
+dataset_87238493_person_sql <- paste("
+    SELECT
+        person.person_id,
+        person.gender_concept_id,
+        p_gender_concept.concept_name as gender,
+        person.birth_datetime as date_of_birth,
+        person.race_concept_id,
+        p_race_concept.concept_name as race,
+        person.ethnicity_concept_id,
+        p_ethnicity_concept.concept_name as ethnicity,
+        person.sex_at_birth_concept_id,
+        p_sex_at_birth_concept.concept_name as sex_at_birth,
+        person.self_reported_category_concept_id,
+        p_self_reported_category_concept.concept_name as self_reported_category 
+    FROM
+        `person` person 
+    LEFT JOIN
+        `concept` p_gender_concept 
+            ON person.gender_concept_id = p_gender_concept.concept_id 
+    LEFT JOIN
+        `concept` p_race_concept 
+            ON person.race_concept_id = p_race_concept.concept_id 
+    LEFT JOIN
+        `concept` p_ethnicity_concept 
+            ON person.ethnicity_concept_id = p_ethnicity_concept.concept_id 
+    LEFT JOIN
+        `concept` p_sex_at_birth_concept 
+            ON person.sex_at_birth_concept_id = p_sex_at_birth_concept.concept_id 
+    LEFT JOIN
+        `concept` p_self_reported_category_concept 
+            ON person.self_reported_category_concept_id = p_self_reported_category_concept.concept_id  
+    WHERE
+        person.PERSON_ID IN (SELECT
+            distinct person_id  
+        FROM
+            `cb_search_person` cb_search_person  
+        WHERE
+            cb_search_person.person_id IN (SELECT
+                person_id 
+            FROM
+                `cb_search_person` p 
+            WHERE
+                has_whole_genome_variant = 1 ) )", sep="")
+
+# Formulate a Cloud Storage destination path for the data exported from BigQuery.
+# NOTE: By default data exported multiple times on the same day will overwrite older copies.
+#       But data exported on a different days will write to a new location so that historical
+#       copies can be kept as the dataset definition is changed.
+person_87238493_path <- file.path(
+  Sys.getenv("WORKSPACE_BUCKET"),
+  "bq_exports",
+  Sys.getenv("OWNER_EMAIL"),
+  strftime(lubridate::now(), "%Y%m%d"),  # Comment out this line if you want the export to always overwrite.
+  "person_87238493",
+  "person_87238493_*.csv")
+message(str_glue('The data will be written to {person_87238493_path}. Use this path when reading ',
+                 'the data into your notebooks in the future.'))
+
+# Perform the query and export the dataset to Cloud Storage as CSV files.
+# NOTE: You only need to run `bq_table_save` once. After that, you can
+#       just read data from the CSVs in Cloud Storage.
+bq_table_save(
+  bq_dataset_query(Sys.getenv("WORKSPACE_CDR"), dataset_87238493_person_sql, billing = Sys.getenv("GOOGLE_PROJECT")),
+  person_87238493_path,
+  destination_format = "CSV")
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {person_87238493_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(gender = col_character(), race = col_character(), ethnicity = col_character(), sex_at_birth = col_character(), self_reported_category = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_87238493_person_df <- read_bq_export_from_workspace_bucket(person_87238493_path)
+
+dim(dataset_87238493_person_df)
+
+head(dataset_87238493_person_df, 5)
+
+WGS_demographics <- subset(dataset_87238493_person_df, select = c("person_id"))
+
+library(tidyverse)
+library(bigrquery)
+
+# This query represents dataset "Demographics_EHR" for domain "person" and was generated for All of Us Controlled Tier Dataset v8
+dataset_47498049_person_sql <- paste("
+    SELECT
+        person.person_id,
+        person.gender_concept_id,
+        p_gender_concept.concept_name as gender,
+        person.birth_datetime as date_of_birth,
+        person.race_concept_id,
+        p_race_concept.concept_name as race,
+        person.ethnicity_concept_id,
+        p_ethnicity_concept.concept_name as ethnicity,
+        person.sex_at_birth_concept_id,
+        p_sex_at_birth_concept.concept_name as sex_at_birth,
+        person.self_reported_category_concept_id,
+        p_self_reported_category_concept.concept_name as self_reported_category 
+    FROM
+        `person` person 
+    LEFT JOIN
+        `concept` p_gender_concept 
+            ON person.gender_concept_id = p_gender_concept.concept_id 
+    LEFT JOIN
+        `concept` p_race_concept 
+            ON person.race_concept_id = p_race_concept.concept_id 
+    LEFT JOIN
+        `concept` p_ethnicity_concept 
+            ON person.ethnicity_concept_id = p_ethnicity_concept.concept_id 
+    LEFT JOIN
+        `concept` p_sex_at_birth_concept 
+            ON person.sex_at_birth_concept_id = p_sex_at_birth_concept.concept_id 
+    LEFT JOIN
+        `concept` p_self_reported_category_concept 
+            ON person.self_reported_category_concept_id = p_self_reported_category_concept.concept_id  
+    WHERE
+        person.PERSON_ID IN (SELECT
+            distinct person_id  
+        FROM
+            `cb_search_person` cb_search_person  
+        WHERE
+            cb_search_person.person_id IN (SELECT
+                person_id 
+            FROM
+                `cb_search_person` p 
+            WHERE
+                has_ehr_data = 1 ) )", sep="")
+
+# Formulate a Cloud Storage destination path for the data exported from BigQuery.
+# NOTE: By default data exported multiple times on the same day will overwrite older copies.
+#       But data exported on a different days will write to a new location so that historical
+#       copies can be kept as the dataset definition is changed.
+person_47498049_path <- file.path(
+  Sys.getenv("WORKSPACE_BUCKET"),
+  "bq_exports",
+  Sys.getenv("OWNER_EMAIL"),
+  strftime(lubridate::now(), "%Y%m%d"),  # Comment out this line if you want the export to always overwrite.
+  "person_47498049",
+  "person_47498049_*.csv")
+message(str_glue('The data will be written to {person_47498049_path}. Use this path when reading ',
+                 'the data into your notebooks in the future.'))
+
+# Perform the query and export the dataset to Cloud Storage as CSV files.
+# NOTE: You only need to run `bq_table_save` once. After that, you can
+#       just read data from the CSVs in Cloud Storage.
+bq_table_save(
+  bq_dataset_query(Sys.getenv("WORKSPACE_CDR"), dataset_47498049_person_sql, billing = Sys.getenv("GOOGLE_PROJECT")),
+  person_47498049_path,
+  destination_format = "CSV")
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {person_47498049_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(gender = col_character(), race = col_character(), ethnicity = col_character(), sex_at_birth = col_character(), self_reported_category = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_47498049_person_df <- read_bq_export_from_workspace_bucket(person_47498049_path)
+
+dim(dataset_47498049_person_df)
+
+head(dataset_47498049_person_df, 5)
+
+EHR_demographics <- subset(dataset_47498049_person_df, select = c("person_id"))
+
+#Combine
+dim(All_with_demographics)
+Subset_demographics <- merge(All_with_demographics, WGS_demographics, by = "person_id")
+dim(Subset_demographics)
+Subset_demographics <- merge(Subset_demographics, EHR_demographics, by = "person_id")
+dim(Subset_demographics)
+
+# This snippet assumes that you run setup first
+library(tidyverse)
+# This code copies a file from your Google Bucket into a dataframe
+
+# replace 'test.csv' with the name of the file in your google bucket (don't delete the quotation marks)
+name_of_file_in_bucket <- 'ehr_length_visit.csv'
+
+########################################################################
+##
+################# DON'T CHANGE FROM HERE ###############################
+##
+########################################################################
+
+# Get the bucket name
+my_bucket <- Sys.getenv('WORKSPACE_BUCKET')
+
+# Copy the file from current workspace to the bucket
+system(paste0("gsutil cp ", my_bucket, "/data/", name_of_file_in_bucket, " ."), intern=T)
+
+# Load the file into a dataframe
+my_dataframe  <- read_csv(name_of_file_in_bucket)
+my_dataframe$ehr_length_year <- my_dataframe$ehr_length/365.25
+EHR_length <- my_dataframe
+head(EHR_length)
+
+EHR_length <- subset(EHR_length, select = c("person_id", "ehr_length", "record_depth"))
+
+dataset <- merge(Subset_demographics, EHR_length, by = "person_id")
+dim(dataset)
+head(dataset)
+
+dataset <- subset(dataset, select = c("person_id", "date_of_birth", "sex_at_birth", "ehr_length", "record_depth"))
+
+#Add dementia
+
+library(tidyverse)
+library(bigrquery)
+
+# This query represents dataset "dementia codes" for domain "condition" and was generated for All of Us Controlled Tier Dataset v8
+dataset_08558994_condition_sql <- paste("
+    SELECT
+        c_occurrence.person_id,
+        c_occurrence.condition_concept_id,
+        c_standard_concept.concept_name as standard_concept_name,
+        c_standard_concept.concept_code as standard_concept_code,
+        c_standard_concept.vocabulary_id as standard_vocabulary,
+        c_occurrence.condition_start_datetime,
+        c_occurrence.condition_end_datetime,
+        c_occurrence.condition_type_concept_id,
+        c_type.concept_name as condition_type_concept_name,
+        c_occurrence.stop_reason,
+        c_occurrence.visit_occurrence_id,
+        visit.concept_name as visit_occurrence_concept_name,
+        c_occurrence.condition_source_value,
+        c_occurrence.condition_source_concept_id,
+        c_source_concept.concept_name as source_concept_name,
+        c_source_concept.concept_code as source_concept_code,
+        c_source_concept.vocabulary_id as source_vocabulary,
+        c_occurrence.condition_status_source_value,
+        c_occurrence.condition_status_concept_id,
+        c_status.concept_name as condition_status_concept_name 
+    FROM
+        ( SELECT
+            * 
+        FROM
+            `condition_occurrence` c_occurrence 
+        WHERE
+            (
+                condition_source_concept_id IN (SELECT
+                    DISTINCT c.concept_id 
+                FROM
+                    `cb_criteria` c 
+                JOIN
+                    (SELECT
+                        CAST(cr.id as string) AS id       
+                    FROM
+                        `cb_criteria` cr       
+                    WHERE
+                        concept_id IN (1568293, 1568295, 35207119, 35207356, 35207357, 35207358, 35207359, 35207360, 35207363, 37402371, 37402372, 37402373, 37402374, 37402375, 37402377, 37402379, 37402380, 37402383, 37402385, 37402388, 37402390, 37402393, 37402395, 37402398, 37402399, 37402400, 37402401, 37402402, 37402403, 37402404, 37402406, 37402409, 37402410, 37402411, 37402412, 37402414, 37402416, 37402417, 37402418, 37402419, 37402420, 37402422, 37402424, 37402425, 37402426, 37402427, 37402429, 37402430, 44819534, 44819573, 44820708, 44820709, 44820749, 44821810, 44821811, 44821813, 44821814, 44824105, 44824106, 44824152, 44826537, 44826538, 44826539, 44827641, 44827644, 44827645, 44829914, 44829915, 44829917, 44831078, 44831079, 44831083, 44831122, 44832219, 44832265, 44833435, 44834581, 44834585, 44835772, 44835773, 44835778, 44835825, 44836954, 44836959, 45538000, 45538103, 45547730, 45562080, 45562081, 45586282, 45591073, 45591076, 45595842, 45595843, 45595932, 45600684,
+ 45600775, 45605533, 45605534, 45605535)       
+                        AND full_text LIKE '%_rank1]%'      ) a 
+                        ON (c.path LIKE CONCAT('%.', a.id, '.%') 
+                        OR c.path LIKE CONCAT('%.', a.id) 
+                        OR c.path LIKE CONCAT(a.id, '.%') 
+                        OR c.path = a.id) 
+                WHERE
+                    is_standard = 0 
+                    AND is_selectable = 1)
+            )) c_occurrence 
+    LEFT JOIN
+        `concept` c_standard_concept 
+            ON c_occurrence.condition_concept_id = c_standard_concept.concept_id 
+    LEFT JOIN
+        `concept` c_type 
+            ON c_occurrence.condition_type_concept_id = c_type.concept_id 
+    LEFT JOIN
+        `visit_occurrence` v 
+            ON c_occurrence.visit_occurrence_id = v.visit_occurrence_id 
+    LEFT JOIN
+        `concept` visit 
+            ON v.visit_concept_id = visit.concept_id 
+    LEFT JOIN
+        `concept` c_source_concept 
+            ON c_occurrence.condition_source_concept_id = c_source_concept.concept_id 
+    LEFT JOIN
+        `concept` c_status 
+            ON c_occurrence.condition_status_concept_id = c_status.concept_id", sep="")
+
+# Formulate a Cloud Storage destination path for the data exported from BigQuery.
+# NOTE: By default data exported multiple times on the same day will overwrite older copies.
+#       But data exported on a different days will write to a new location so that historical
+#       copies can be kept as the dataset definition is changed.
+condition_08558994_path <- file.path(
+  Sys.getenv("WORKSPACE_BUCKET"),
+  "bq_exports",
+  Sys.getenv("OWNER_EMAIL"),
+  strftime(lubridate::now(), "%Y%m%d"),  # Comment out this line if you want the export to always overwrite.
+  "condition_08558994",
+  "condition_08558994_*.csv")
+message(str_glue('The data will be written to {condition_08558994_path}. Use this path when reading ',
+                 'the data into your notebooks in the future.'))
+
+# Perform the query and export the dataset to Cloud Storage as CSV files.
+# NOTE: You only need to run `bq_table_save` once. After that, you can
+#       just read data from the CSVs in Cloud Storage.
+bq_table_save(
+  bq_dataset_query(Sys.getenv("WORKSPACE_CDR"), dataset_08558994_condition_sql, billing = Sys.getenv("GOOGLE_PROJECT")),
+  condition_08558994_path,
+  destination_format = "CSV")
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {condition_08558994_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(standard_concept_name = col_character(), standard_concept_code = col_character(), standard_vocabulary = col_character(), condition_type_concept_name = col_character(), stop_reason = col_character(), visit_occurrence_concept_name = col_character(), condition_source_value = col_character(), source_concept_name = col_character(), source_concept_code = col_character(), source_vocabulary = col_character(), condition_status_source_value = col_character(), condition_status_concept_name = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_08558994_condition_df <- read_bq_export_from_workspace_bucket(condition_08558994_path)
+
+dim(dataset_08558994_condition_df)
+
+head(dataset_08558994_condition_df, 5)
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {condition_08558994_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(standard_concept_name = col_character(), standard_concept_code = col_character(), standard_vocabulary = col_character(), condition_type_concept_name = col_character(), stop_reason = col_character(), visit_occurrence_concept_name = col_character(), condition_source_value = col_character(), source_concept_name = col_character(), source_concept_code = col_character(), source_vocabulary = col_character(), condition_status_source_value = col_character(), condition_status_concept_name = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_08558994_condition_df <- read_bq_export_from_workspace_bucket(condition_08558994_path)
+
+dim(dataset_08558994_condition_df)
+
+head(dataset_08558994_condition_df, 5)
+
+dataset_08558994_condition_df <- subset(dataset_08558994_condition_df, select = c("person_id", "condition_start_datetime"))
+
+dementia <- dataset_08558994_condition_df %>% group_by(person_id) %>% 
+                    mutate(n = n(), dementia_time = min(condition_start_datetime, na.rm = TRUE))
+dementia$duplicated <- duplicated(dementia$person_id)
+dementia <- subset(dementia, duplicated == FALSE)
+head(dementia)
+
+dementia <- subset(dementia, select = c("person_id", "dementia_time"))
+
+dataset$dementia <- ifelse(dataset$person_id %in% dementia$person_id, 1, 0)
+table(dataset$dementia)
+
+dataset2 <- merge(dataset, dementia, by = "person_id", all.x = TRUE)
+head(dataset2)
+
+library(tidyverse)
+library(bigrquery)
+
+# This query represents dataset "Death" for domain "condition" and was generated for All of Us Controlled Tier Dataset v8
+dataset_88424411_condition_sql <- paste("
+    SELECT
+        c_occurrence.person_id,
+        c_occurrence.condition_concept_id,
+        c_standard_concept.concept_name as standard_concept_name,
+        c_standard_concept.concept_code as standard_concept_code,
+        c_standard_concept.vocabulary_id as standard_vocabulary,
+        c_occurrence.condition_start_datetime,
+        c_occurrence.condition_end_datetime,
+        c_occurrence.condition_type_concept_id,
+        c_type.concept_name as condition_type_concept_name,
+        c_occurrence.stop_reason,
+        c_occurrence.visit_occurrence_id,
+        visit.concept_name as visit_occurrence_concept_name,
+        c_occurrence.condition_source_value,
+        c_occurrence.condition_source_concept_id,
+        c_source_concept.concept_name as source_concept_name,
+        c_source_concept.concept_code as source_concept_code,
+        c_source_concept.vocabulary_id as source_vocabulary,
+        c_occurrence.condition_status_source_value,
+        c_occurrence.condition_status_concept_id,
+        c_status.concept_name as condition_status_concept_name 
+    FROM
+        ( SELECT
+            * 
+        FROM
+            `condition_occurrence` c_occurrence 
+        WHERE
+            (
+                condition_concept_id IN (SELECT
+                    DISTINCT c.concept_id 
+                FROM
+                    `cb_criteria` c 
+                JOIN
+                    (SELECT
+                        CAST(cr.id as string) AS id       
+                    FROM
+                        `cb_criteria` cr       
+                    WHERE
+                        concept_id IN (4048809, 4317150, 434489)       
+                        AND full_text LIKE '%_rank1]%'      ) a 
+                        ON (c.path LIKE CONCAT('%.', a.id, '.%') 
+                        OR c.path LIKE CONCAT('%.', a.id) 
+                        OR c.path LIKE CONCAT(a.id, '.%') 
+                        OR c.path = a.id) 
+                WHERE
+                    is_standard = 1 
+                    AND is_selectable = 1)
+            )) c_occurrence 
+    LEFT JOIN
+        `concept` c_standard_concept 
+            ON c_occurrence.condition_concept_id = c_standard_concept.concept_id 
+    LEFT JOIN
+        `concept` c_type 
+            ON c_occurrence.condition_type_concept_id = c_type.concept_id 
+    LEFT JOIN
+        `visit_occurrence` v 
+            ON c_occurrence.visit_occurrence_id = v.visit_occurrence_id 
+    LEFT JOIN
+        `concept` visit 
+            ON v.visit_concept_id = visit.concept_id 
+    LEFT JOIN
+        `concept` c_source_concept 
+            ON c_occurrence.condition_source_concept_id = c_source_concept.concept_id 
+    LEFT JOIN
+        `concept` c_status 
+            ON c_occurrence.condition_status_concept_id = c_status.concept_id", sep="")
+
+# Formulate a Cloud Storage destination path for the data exported from BigQuery.
+# NOTE: By default data exported multiple times on the same day will overwrite older copies.
+#       But data exported on a different days will write to a new location so that historical
+#       copies can be kept as the dataset definition is changed.
+condition_88424411_path <- file.path(
+  Sys.getenv("WORKSPACE_BUCKET"),
+  "bq_exports",
+  Sys.getenv("OWNER_EMAIL"),
+  strftime(lubridate::now(), "%Y%m%d"),  # Comment out this line if you want the export to always overwrite.
+  "condition_88424411",
+  "condition_88424411_*.csv")
+message(str_glue('The data will be written to {condition_88424411_path}. Use this path when reading ',
+                 'the data into your notebooks in the future.'))
+
+# Perform the query and export the dataset to Cloud Storage as CSV files.
+# NOTE: You only need to run `bq_table_save` once. After that, you can
+#       just read data from the CSVs in Cloud Storage.
+bq_table_save(
+  bq_dataset_query(Sys.getenv("WORKSPACE_CDR"), dataset_88424411_condition_sql, billing = Sys.getenv("GOOGLE_PROJECT")),
+  condition_88424411_path,
+  destination_format = "CSV")
+
+# Read the data directly from Cloud Storage into memory.
+# NOTE: Alternatively you can `gsutil -m cp {condition_88424411_path}` to copy these files
+#       to the Jupyter disk.
+read_bq_export_from_workspace_bucket <- function(export_path) {
+  col_types <- cols(standard_concept_name = col_character(), standard_concept_code = col_character(), standard_vocabulary = col_character(), condition_type_concept_name = col_character(), stop_reason = col_character(), visit_occurrence_concept_name = col_character(), condition_source_value = col_character(), source_concept_name = col_character(), source_concept_code = col_character(), source_vocabulary = col_character(), condition_status_source_value = col_character(), condition_status_concept_name = col_character())
+  bind_rows(
+    map(system2('gsutil', args = c('ls', export_path), stdout = TRUE, stderr = TRUE),
+        function(csv) {
+          message(str_glue('Loading {csv}.'))
+          chunk <- read_csv(pipe(str_glue('gsutil cat {csv}')), col_types = col_types, show_col_types = FALSE)
+          if (is.null(col_types)) {
+            col_types <- spec(chunk)
+          }
+          chunk
+        }))
+}
+dataset_88424411_condition_df <- read_bq_export_from_workspace_bucket(condition_88424411_path)
+
+dim(dataset_88424411_condition_df)
+
+head(dataset_88424411_condition_df, 5)
+
+dataset_88424411_condition_df <- subset(dataset_88424411_condition_df, select = c("person_id", "condition_start_datetime"))
+
+death <- dataset_88424411_condition_df %>% group_by(person_id) %>% 
+                    mutate(n = n(), death_time = max(condition_start_datetime, na.rm = TRUE))
+death$duplicated <- duplicated(death$person_id)
+death <- subset(death, duplicated == FALSE)
+head(death)
+
+death <- subset(death, select = c("person_id", "death_time"))
+
+dataset2 <- merge(dataset2, death, by = "person_id", all.x = TRUE)
+head(dataset2)
+
+dataset2 <- subset(dataset2, sex_at_birth == "Female" | sex_at_birth == "Male")
+table(dataset2$dementia)
+
+dataset2$last_day_follow_up <- ifelse(dataset2$dementia == 1, dataset2$dementia_time,
+                                     ifelse(is.na(dataset2$death_time) == FALSE, dataset2$death_time,
+                                           "2023-10-01"))
+
+dataset2 <- dataset2 %>%
+                mutate_if(is.list, as.character) %>%
+                mutate(age_end_of_follow_up = year(dataset2$last_day_follow_up) - year(dataset2$date_of_birth))
+
+head(dataset2)
+
+#Restrict controls
+#EHR length and time
+dataset2$exclude <- ifelse(dataset2$dementia == 1, 0,
+                          ifelse(dataset2$dementia == 0 & dataset2$record_depth > 2 & dataset2$ehr_length >=1095, 0, 
+                                 1))
+table(dataset2$exclude)
+dataset2 <- subset(dataset2, exclude == 0)
+table(dataset2$dementia)
+#restrict to 65 years or older
+dataset2$exclude2 <- ifelse(dataset2$dementia == 1, 0,
+                          ifelse(dataset2$dementia == 0 & dataset2$age_end_of_follow_up < 65, 1, 
+                                 0))
+table(dataset2$exclude2)
+dataset2 <- subset(dataset2, exclude2 == 0)
+table(dataset2$dementia)
+
+dataset3 <- subset(dataset2, age_end_of_follow_up >= 65)
+table(dataset3$dementia)
+head(dataset3)
+
+# This snippet assumes that you run setup first
+
+# This code saves your dataframe into a csv file in a "data" folder in Google Bucket
+
+# Replace df with THE NAME OF YOUR DATAFRAME
+my_dataframe <- dataset3
+
+# Replace 'test.csv' with THE NAME of the file you're going to store in the bucket (don't delete the quotation marks)
+destination_filename <- 'cohort_dementia_without_PRS.csv'
+
+########################################################################
+##
+################# DON'T CHANGE FROM HERE ###############################
+##
+########################################################################
+
+# store the dataframe in current workspace
+write_excel_csv(my_dataframe, destination_filename)
+
+# Get the bucket name
+my_bucket <- Sys.getenv('WORKSPACE_BUCKET')
+
+# Copy the file from current workspace to the bucket
+system(paste0("gsutil cp ./", destination_filename, " ", my_bucket, "/data/"), intern=T)
+
+# Check if file is in the bucket
+system(paste0("gsutil ls ", my_bucket, "/data/*.csv"), intern=T)
+
+
+
+
+

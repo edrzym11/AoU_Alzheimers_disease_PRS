@@ -1,1 +1,3 @@
 README
+Files in this directory contain weights for Alzheimer's disease PRS using PRS-CSx. 
+Due to size of files, weights have been separated into different files by chromosome and ancestry.
